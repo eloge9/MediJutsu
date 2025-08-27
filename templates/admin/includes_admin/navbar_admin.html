@@ -1,0 +1,238 @@
+<nav id="sidebar" class="sidebar-wrapper">
+
+    <!-- Profil utilisateur -->
+    <div class="sidebar-profile">
+        <img src="{{ url_for('static', filename='images/user6.png') }}" class="img-shadow img-3x me-3 rounded-5"
+            alt="Photo Admin">
+        <div class="m-0">
+            <h5 class="mb-1 profile-name text-nowrap text-truncate">Eloge GOMINA</h5>
+            <p class="m-0 small profile-name text-nowrap text-truncate">Département Administration</p>
+        </div>
+    </div>
+
+    <!-- Menu principal -->
+    <div class="sidebarMenuScroll">
+        <ul class="sidebar-menu">
+
+            <!-- Tableau de bord -->
+            <li class="active current-page">
+                <a href="{{ url_for('index') }}">
+                    <i class="ri-home-6-line"></i>
+                    <span class="menu-text">Tableau de bord</span>
+                </a>
+            </li>
+
+            <!-- Gestion des comptes admin -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-admin-line"></i>
+                    <span class="menu-text">Administrateurs</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{ url_for('liste_admin') }}">Liste des administrateurs</a></li>
+                    <li><a href="{{ url_for('signup') }}">Ajouter un administrateur</a></li>
+                </ul>
+            </li>
+
+            <!-- Médecins -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-stethoscope-line"></i>
+                    <span class="menu-text">Médecins</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{ url_for('liste_docteur_admin') }}">Liste des médecins</a></li>
+                    <li><a href="{{ url_for('signup_doctor') }}">Ajouter un médecin</a></li>
+                </ul>
+            </li>
+
+            <!-- Secrétaires médicales -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-user-settings-line"></i>
+                    <span class="menu-text">Secrétaires médicales</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{ url_for('liste_secretaire_admin') }}">Liste des secrétaires</a></li>
+                    <li><a href="{{ url_for('signup_secretaire') }}">Ajouter une secrétaire</a></li>
+                </ul>
+            </li>
+
+            <!-- Patients -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-user-heart-line"></i>
+                    <span class="menu-text">Patients</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{ url_for('liste_patient_admin') }}">Liste des patients</a></li>
+                    <li><a href="{{ url_for('signup_patient_admin') }}">Ajouter un patient</a></li>
+                </ul>
+            </li>
+
+            <!-- Infirmiers -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-nurse-line"></i>
+                    <span class="menu-text">Infirmiers</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="staff.html">Liste des infirmiers</a></li>
+                    <li><a href="add-staff.html">Ajouter un infirmier</a></li>
+                </ul>
+            </li>
+
+            <!-- Caissiers -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-wallet-3-line"></i>
+                    <span class="menu-text">Caissiers</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="staff.html">Liste des caissiers</a></li>
+                    <li><a href="add-staff.html">Ajouter un caissier</a></li>
+                </ul>
+            </li>
+
+            <!-- Logistique -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-truck-line"></i>
+                    <span class="menu-text">Logistique</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="staff.html">Liste des gestionnaires logistique</a></li>
+                    <li><a href="add-staff.html">Ajouter un gestionnaire</a></li>
+                    <li><a href="rooms-allotted.html">Chambres</a></li>
+                    <li><a href="add-room.html">Ajouter une chambre</a></li>
+                </ul>
+            </li>
+
+            <!-- Gestion des stocks -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-archive-line"></i>
+                    <span class="menu-text">Stock médical</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="rooms-allotted.html">Liste des stocks</a></li>
+                    <li><a href="add-room.html">Ajouter un stock</a></li>
+                </ul>
+            </li>
+
+            <!-- Ambulances -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-car-line"></i>
+                    <span class="menu-text">Ambulances</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="ambulance-list.html">Liste des ambulances</a></li>
+                    <li><a href="add-ambulance.html">Ajouter une ambulance</a></li>
+                </ul>
+            </li>
+
+            <!-- Dossiers IA -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-brain-line"></i>
+                    <span class="menu-text">Modules IA</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{url_for('resumer_dossier_doctor')}}">Résumé des dossiers</a></li>
+                    <li><a href="{{url_for('sugetion_doctor')}}">Suggestions de traitement</a></li>
+                    <li><a href="{{url_for('surveillance_dossier_doctor')}}">Surveillance patient</a></li>
+                </ul>
+            </li>
+
+            <!-- Rendez-vous -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-calendar-check-line"></i>
+                    <span class="menu-text">Rendez-vous</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="appointments-list.html">Liste des rendez-vous</a></li>
+                    <li><a href="book-appointment.html">Prendre un rendez-vous</a></li>
+                </ul>
+            </li>
+
+            <li>
+                <a href="#">
+                    <i class="ri-chat-3-line"></i>
+                    <span class="menu-text">Messagerie</span>
+                </a>
+            </li>
+
+            <!-- Départements -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-building-line"></i>
+                    <span class="menu-text">Départements</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="departments-list.html">Liste des départements</a></li>
+                    <li><a href="add-department.html">Ajouter un département</a></li>
+                </ul>
+            </li>
+
+            <!-- Événements -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-calendar-line"></i>
+                    <span class="menu-text">Événements</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="events.html">Tous les événements</a></li>
+                    <li><a href="add-event.html">Ajouter un événement</a></li>
+                </ul>
+            </li>
+
+            <!-- Galerie -->
+            <li>
+                <a href="gallery.html">
+                    <i class="ri-image-line"></i>
+                    <span class="menu-text">Galerie</span>
+                </a>
+            </li>
+
+            <!-- Actualités -->
+            <li>
+                <a href="news.html">
+                    <i class="ri-newspaper-line"></i>
+                    <span class="menu-text">Actualités</span>
+                </a>
+            </li>
+
+            <!-- Paramètres -->
+            <li>
+                <a href="settings.html">
+                    <i class="ri-settings-3-line"></i>
+                    <span class="menu-text">Paramètres</span>
+                </a>
+            </li>
+
+            <!-- Comptes -->
+            <li class="treeview">
+                <a href="#!">
+                    <i class="ri-user-line"></i>
+                    <span class="menu-text">Compte</span>
+                </a>
+                <ul class="treeview-menu">
+                    <li><a href="{{url_for('login')}}">Connexion</a></li>
+                    <li><a href="{{url_for('logout')}}">Déconnexion</a></li>
+                    <li><a href="{{url_for('reset_pasword')}}">Réinitialiser mot de passe</a></li>
+                </ul>
+            </li>
+
+        </ul>
+    </div>
+
+    <!-- Contact d'urgence -->
+    <div class="sidebar-contact">
+        <p class="fw-light mb-1 text-nowrap text-truncate">Contact d'urgence</p>
+        <h5 class="m-0 lh-1 text-nowrap text-truncate">+228 91 27 10 04</h5>
+        <i class="ri-phone-line"></i>
+    </div>
+
+</nav>

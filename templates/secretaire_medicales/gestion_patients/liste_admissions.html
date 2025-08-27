@@ -1,0 +1,112 @@
+{%extends 'secretaire_medicales/base_secretaire_medicales.html' %}
+
+{% block content%}
+<!-- Conteneur principal -->
+<div class="app-container">
+
+  <!-- En-tête -->
+  <div class="app-hero-header d-flex align-items-center">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <i class="ri-home-8-line lh-1 pe-3 me-3 border-end"></i>
+        <a href="{{url_for('admission_patient')}}">secretaire_medicales</a>
+      </li>
+      <li class="breadcrumb-item text-primary" aria-current="page">
+        Liste des admissions
+      </li>
+    </ol>
+  </div>
+
+  <!-- Corps de l’application -->
+  <div class="app-body">
+    <div class="row gx-3">
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="card-title">Liste des Admissions</h5>
+            <a href="{{ url_for('admission_patient') }}" class="btn btn-primary ms-auto">Faire une Admission</a>
+          </div>
+          <div class="card-body">
+
+            <!-- Tableau des médecins -->
+            <div class="table-responsive">
+              <table id="basicExample" class="table truncate m-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nom du patient</th>
+                    <th>Email</th>
+                    <th>motif d Admission</th>
+                    <th>personne à prevenir</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for admission in admissions %}
+                  {% if admission.statut_sortie != "oui"%}
+                  <tr>
+                    <td>{{ admission.ident }}</td>
+                    <td>
+                      <img src="{{ url_for('static', filename='path_to_default_photo.png') }}"
+                        class="img-shadow img-2x rounded-5 me-1" alt="Photo">
+                      <span>{{ admission.nom }} {{ admission.prenom }}</span>
+                    </td>
+                    <td>{{ admission.email }}</td>
+                    <td>{{ admission.motif }}</td>
+                    <td>{{ admission.pp_nom }} {{ admission.pp_telephone }}</td>
+                    <td>
+                      <div class="d-inline-flex gap-1">
+                        <a href="{{ url_for('creer_sortie', admission_id=admission.ident) }}"
+                          class="btn btn-outline-success btn-sm" title="sortie">
+                          <i class="ri-door-open-line"></i>
+                        </a>
+                        <a href="{{ url_for('modifier_admission', admission_id=admission.ident) }}"
+                          class="btn btn-outline-success btn-sm" title="Modifier le profil">
+                          <i class="ri-edit-box-line"></i>
+                        </a>
+                        <a href="{{ url_for('voir_admission', admission_id=admission.ident) }}"
+                          class="btn btn-outline-info btn-sm" title="Voir admission">
+                          <i class="ri-eye-line"></i>
+                        </a>
+                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                          data-bs-target="#modalDelete" data-id="{{ admission.ident }}"
+                          onclick="updateDeleteLinkAdmission(this)" title="suprimer admission">
+                          <i class="ri-delete-bin-line"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Modal suppression admission -->
+            <div class="modal fade" id="modalDelete" tabindex="-1" aria-labelledby="modalDeleteLabel"
+              aria-hidden="true">
+              <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="modalDeleteLabel">Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                  </div>
+                  <div class="modal-body">
+                    Êtes-vous sûr de vouloir supprimer cette admission ?
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <a href="#" id="confirmDeleteBtn" class="btn btn-danger">Oui</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{%endblock%}

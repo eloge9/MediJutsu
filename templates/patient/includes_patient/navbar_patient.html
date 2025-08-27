@@ -1,0 +1,104 @@
+<nav id="sidebar" class="sidebar-wrapper">
+
+  <!-- Profil de la barre latérale -->
+  <div class="sidebar-profile">
+    <img src="{{ url_for('static', filename='images/user6.png') }}" class="img-shadow img-3x me-3 rounded-5"
+      alt="Profil Patient">
+    <div class="m-0">
+      <h5 class="mb-1 profile-name text-nowrap text-truncate">GOMINA Eloge</h5>
+      <p class="m-0 small profile-name text-nowrap text-truncate">Patient</p>
+    </div>
+  </div>
+  <!-- Fin du profil -->
+
+  <!-- Menu principal -->
+  <div class="sidebarMenuScroll">
+    <ul class="sidebar-menu">
+
+      <li class="treeview active current-page">
+        <a href="{{ url_for('index_patient') }}">
+          <i class="ri-home-6-line"></i>
+          <span class="menu-text">Tableau de bord</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('modifier_profile_patient') }}">
+          <i class="ri-user-line"></i>
+          <span class="menu-text">Modifier mon profil</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('nouveau_rendezvous') }}">
+          <i class="ri-calendar-line"></i>
+          <span class="menu-text">Prendre rendez-vous</span>
+        </a>
+      </li>
+      <li>
+        <a href="{{ url_for('calendrier_rendezvous') }}">
+          <i class="ri-calendar-line"></i>
+          <span class="menu-text">Ces rendez-vous</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="#">
+          <i class="ri-wallet-line"></i>
+          <span class="menu-text">Effectuer un paiement</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('dossier_medical_patient', patient_id=patient.ident) if patient else '#' }}">
+          <i class="ri-folder-line"></i>
+          <span class="menu-text">Mon dossier médical</span>
+        </a>
+      </li>
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-file-list-3-line"></i>
+          <span class="menu-text">Mes historiques</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{url_for('historique_patient')}}">historique des consultations</a></li>
+          <li><a href="">Historique des examens</a></li>
+          <li><a href="">Historique</a></li>
+        </ul>
+      </li>
+
+
+      <li>
+        <a href="#">
+          <i class="ri-chat-3-line"></i>
+          <span class="menu-text">Messagerie</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="#">
+          <i class="ri-settings-5-line"></i>
+          <span class="menu-text">Paramètres du compte</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('logout') }}">
+          <i class="ri-logout-box-line"></i>
+          <span class="menu-text">Déconnexion</span>
+        </a>
+      </li>
+
+    </ul>
+  </div>
+  <!-- Fin du menu -->
+
+  <!-- Contact d'urgence -->
+  <div class="sidebar-contact">
+    <p class="fw-light mb-1 text-nowrap text-truncate">Contact d'urgence</p>
+    <h5 class="m-0 lh-1 text-nowrap text-truncate">0987654321</h5>
+    <i class="ri-phone-line"></i>
+  </div>
+  <!-- Fin contact d'urgence -->
+
+</nav>

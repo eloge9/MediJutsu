@@ -1,0 +1,173 @@
+<nav id="sidebar" class="sidebar-wrapper">
+
+  <!-- Profil du médecin -->
+  <div class="sidebar-profile">
+    <img src="{{ url_for('static', filename='images/user6.png') }}" class="img-shadow img-3x me-3 rounded-5"
+      alt="Profil médecin">
+    <div class="m-0">
+      <h5 class="mb-1 profile-name text-nowrap text-truncate">Eloge GOMINA</h5>
+      <p class="m-0 small profile-name text-nowrap text-truncate">Médecin</p>
+    </div>
+  </div>
+
+  <!-- Menu de navigation -->
+  <div class="sidebarMenuScroll">
+    <ul class="sidebar-menu">
+
+      <li class="active current-page">
+        <a href="{{ url_for('index_doctor') }}">
+          <i class="ri-home-5-line"></i>
+          <span class="menu-text">Tableau de bord</span>
+        </a>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-user-3-line"></i>
+          <span class="menu-text">Mon profil</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('liste_doctor') }}">Liste des médecins</a></li>
+          <li><a href="{{ url_for('profile_doctor') }}">Voir mon profil</a></li>
+          <li><a href="{{ url_for('modifier_profile_doctor') }}">Modifier mon profil</a></li>
+        </ul>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-user-heart-line"></i>
+          <span class="menu-text">Patients</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('liste_patient_doctor') }}">Liste des patients</a></li>
+          <li><a href="{{ url_for('add_patient_doctor') }}">Ajouter un patient</a></li>
+        </ul>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-stethoscope-line"></i>
+          <span class="menu-text">Consultations</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('liste_consultations_medecin', doctor_id=session['doctor_id']) }}">Consultations en
+              cours</a></li>
+          <li><a href="{{ url_for('historique_consultations_doctor') }}">Historique</a></li>
+        </ul>
+      </li>
+
+      <li>
+        <a href="#">
+          <i class="ri-hotel-bed-line"></i>
+          <span class="menu-text">Hospitalisation</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{url_for('liste_patients_dossier_medical')}}">
+          <i class="ri-folder-3-line"></i>
+          <span class="menu-text">Dossier médical</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="#">
+          <i class="ri-chat-3-line"></i>
+          <span class="menu-text">Messagerie</span>
+        </a>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-brain-line"></i>
+          <span class="menu-text">Modules IA</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('resumer_dossier_doctor') }}">Résumé des dossiers</a></li>
+          <li><a href="{{ url_for('sugetion_doctor') }}">Suggestions de traitement</a></li>
+          <li><a href="{{ url_for('surveillance_dossier_doctor') }}">Surveillance des patients</a></li>
+        </ul>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-calendar-check-line"></i>
+          <span class="menu-text">Rendez-vous</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('rendez_vous_doctor') }}">Mes rendez-vous</a></li>
+          <li><a href="{{ url_for('prendre_rendez_vous_doctor') }}">Planifier un rendez-vous</a></li>
+        </ul>
+      </li>
+
+      <li>
+        <a href="{{ url_for('evenement_doctor') }}">
+          <i class="ri-calendar-event-line"></i>
+          <span class="menu-text">Événements</span>
+        </a>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-time-line"></i>
+          <span class="menu-text">Présence & Congés</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('presence_doctor') }}">Présence</a></li>
+          <li><a href="{{ url_for('conge_doctor') }}">Mes congés</a></li>
+        </ul>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-money-euro-circle-line"></i>
+          <span class="menu-text">Salaires</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="payslip.html">Fiche de paie</a></li>
+        </ul>
+      </li>
+
+      <li>
+        <a href="{{ url_for('galerie_doctor') }}">
+          <i class="ri-gallery-line"></i>
+          <span class="menu-text">Galerie</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('actualiter_doctor') }}">
+          <i class="ri-notification-3-line"></i>
+          <span class="menu-text">Actualités</span>
+        </a>
+      </li>
+
+      <li>
+        <a href="{{ url_for('parametre_doctor') }}">
+          <i class="ri-settings-3-line"></i>
+          <span class="menu-text">Paramètres</span>
+        </a>
+      </li>
+
+      <li class="treeview">
+        <a href="#!">
+          <i class="ri-lock-2-line"></i>
+          <span class="menu-text">Sécurité</span>
+        </a>
+        <ul class="treeview-menu">
+          <li><a href="{{ url_for('logout') }}">Déconnexion</a></li>
+          <li><a href="{{ url_for('reset_pasword') }}">Réinitialiser mot de passe</a></li>
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+
+  <!-- Contact d'urgence -->
+  <div class="sidebar-contact">
+    <p class="fw-light mb-1 text-nowrap text-truncate">Contact d'urgence</p>
+    <h5 class="m-0 lh-1 text-nowrap text-truncate">91271004</h5>
+    <i class="ri-phone-line"></i>
+  </div>
+
+</nav>

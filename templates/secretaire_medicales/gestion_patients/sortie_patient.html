@@ -1,0 +1,45 @@
+{% extends 'secretaire_medicales/base_secretaire_medicales.html' %}
+{% block content %}
+
+<div class="container mt-5 mb-5">
+    <h2 class="mb-4 text-primary fw-bold">
+        <i class="ri-user-add-line me-2"></i>Sortie du Patient
+    </h2>
+
+    <form method="POST" action="" novalidate>
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Motif -->
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Motif de sortie</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ri-file-list-2-line"></i></span>
+                            <input type="text" class="form-control" name="motif" placeholder="Ex: transfert, ..."
+                                required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Observations -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <label class="form-label fw-semibold">Observations supplémentaires</label>
+                <textarea class="form-control" name="observations" rows="3"
+                    placeholder="Notes supplémentaires..."></textarea>
+            </div>
+        </div>
+
+        <!-- Boutons -->
+        <div class="d-flex justify-content-end gap-3">
+            <a href="{{ url_for('liste_admissions') }}" class="btn btn-outline-secondary">Annuler</a>
+            <button type="submit" class="btn btn-success">
+                <i class="ri-save-line me-1"></i> Enregistrer
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
