@@ -1,6 +1,6 @@
 Flask
 flask-mysqldb
-mysqlclient
+pymysql
 Flask-Mail
 Flask-Migrate
 Flask-SQLAlchemy

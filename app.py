@@ -11,8 +11,11 @@ from flask_migrate import Migrate
 from xhtml2pdf import pisa
 from io import BytesIO
 from functools import wraps
+import pymysql
 
 
+
+pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 
