@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, redirect, url_for, session, request, flash,make_response, jsonify
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
@@ -3934,7 +3935,9 @@ def liste_patients_dossier_medical():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Railway fournit automatiquement le port via la variable d'environnement PORT
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 
 # Afficher toutes les ressources
