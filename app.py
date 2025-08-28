@@ -58,7 +58,6 @@ app.config['MAIL_DEFAULT_SENDER'] = ('MediJutsu', 'elogegomina@gmail.com')
 mail = Mail(app)
 
 mysql = MySQL()
-mysql.init_app(app)
 
 app.secret_key = my_secret_key
 
