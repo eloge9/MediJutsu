@@ -25,9 +25,11 @@ app.config['MYSQL_USER'] = my_user
 app.config['MYSQL_PASSWORD'] = my_password
 app.config['MYSQL_DB'] =  my_db
 app.config['MYSQL_CURSORCLASS'] =my_CURSORCLASS
+app.config['MYSQL_PORT'] = my_port
 
 # pour la base de donner ORM
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{my_user}:{my_password}@{my_host}/{my_db}'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{my_user}:{my_password}@{my_host}:{my_port}/{my_db}'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = True
 
