@@ -3063,16 +3063,25 @@ def voir_consultation_doctor(id):
 @app.route('/doctor/consultation/<int:id>/telecharger')
 @login_required()
 def telecharger_consultation(id):
+    # Récupère la consultation depuis la base
     consultation = Consultation.query.get_or_404(id)
-    html = render_template("doctor/consultation/pdf_consultation.html",
-                           consultation=consultation,
-                           now=datetime.now)
 
-    pdf = HTML(string=html, base_url=request.base_url).write_pdf()
+    # Génère le HTML depuis le template
+    html = render_template(
+        "doctor/consultation/pdf_consultation.html",
+        consultation=consultation,
+        now=datetime.now  # Permet d'afficher la date/heure actuelle dans le template
+    )
 
+    # Génère le PDF avec WeasyPrint
+    # base_url = request.url_root pour que toutes les ressources statiques soient accessibles
+    pdf = HTML(string=html, base_url=request.url_root).write_pdf()
+
+    # Crée la réponse pour forcer le téléchargement
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=consultation_{id}.pdf'
+
     return response
 
 
