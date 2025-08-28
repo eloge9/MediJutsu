@@ -7,7 +7,7 @@ import re
 from models import db, Consultation, Patient, Doctor, Admission, Sortie, Produit, SecretaireMedicale, RendezVous
 from datetime import  datetime, date, time, timedelta
 from flask_migrate import Migrate
-from xhtml2pdf import pisa
+from weasyprint import HTML
 from io import BytesIO
 from functools import wraps
 import pymysql
@@ -3064,25 +3064,13 @@ def voir_consultation_doctor(id):
 @login_required()
 def telecharger_consultation(id):
     consultation = Consultation.query.get_or_404(id)
+    html = render_template("doctor/consultation/pdf_consultation.html",
+                           consultation=consultation,
+                           now=datetime.now)
 
-    # Rendu HTML
-    html = render_template(
-        "doctor/consultation/pdf_consultation.html",
-        consultation=consultation,
-        now=datetime.now
-    )
+    pdf = HTML(string=html).write_pdf()
 
-    # Génération PDF
-    pdf = BytesIO()
-    pisa_status = pisa.CreatePDF(html.encode('utf-8'), dest=pdf)
-
-    if pisa_status.err:
-        return "Erreur lors de la génération du PDF", 500
-
-    pdf.seek(0)
-
-    # Renvoi du PDF
-    response = make_response(pdf.read())
+    response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=consultation_{id}.pdf'
     return response
