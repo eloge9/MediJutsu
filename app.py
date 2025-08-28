@@ -1,6 +1,5 @@
 import os
 from flask import Flask, render_template, redirect, url_for, session, request, flash,make_response, jsonify
-import MySQLdb.cursors
 import hashlib
 from credentials import *
 from flask_mail import Mail, Message
@@ -62,6 +61,29 @@ app.secret_key = my_secret_key
 pattern_email = r'(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))'
 pattern_phone = r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$'
 
+
+def get_cursor():
+    """
+    Retourne un 'curseur' compatible DictCursor pour remplacer MySQLdb
+    """
+    class CursorWrapper:
+        def execute(self, query, params=None):
+            self.result = mysql.session.execute(query, params or {})
+            return self.result
+
+        def fetchone(self):
+            return self.result.mappings().first()
+
+        def fetchall(self):
+            return self.result.mappings().all()
+
+        def commit(self):
+            mysql.session.commit()
+
+    return CursorWrapper()
+
+
+
 """debut decorateur autentification"""
 # autentificaton
 def login_required(role=None):
@@ -115,7 +137,7 @@ def index():
 @app.route('/admin/liste_admin')
 @login_required(role='admin')
 def liste_admin():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT ident, nom_complet, email_admin, numero_telephone FROM admin")
     admins = cursor.fetchall()
     cursor.close()
@@ -143,7 +165,7 @@ def supprimer_admin(id):
 #modifier admin
 @app.route("/modifier-admin/<int:id>", methods=["GET", "POST"])
 def modifier_admin(id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
 
     if request.method == "POST":
         nom_complet = request.form['nom_complet']
@@ -173,7 +195,7 @@ def liste_docteur_admin():
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM doctor")
     doctors = cursor.fetchall()
     return render_template("admin/gestion_docteur/Liste_docteur.html", doctors=doctors)
@@ -192,7 +214,7 @@ def supprimer_docteur(id):
 @app.route('/admin/voir/<int:id>')
 @login_required(role='admin')
 def voir_admin(id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT ident, nom_complet, email_admin, numero_telephone, date_inscription FROM admin WHERE ident = %s", (id,))
     admin = cursor.fetchone()  # Un seul admin
 
@@ -223,7 +245,7 @@ def liste_patient_admin():
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM patient")
     patients = cursor.fetchall()
 
@@ -263,7 +285,7 @@ def liste_secretaire_admin():
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM secretaire_medicale")
     secretaires = cursor.fetchall()
 
@@ -291,7 +313,7 @@ def voir_secretaire_admin(id):
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM secretaire_medicale WHERE ident = %s", (id,))
     secretaire = cursor.fetchone()
 
@@ -402,7 +424,7 @@ def modifier_profile_doctor():
         return redirect(url_for('login'))
 
     email = session['email_doctor']
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
 
     if request.method == 'POST':
         donnes = request.form
@@ -776,7 +798,7 @@ def modifier_profile_patient():
         return redirect(url_for('login'))
 
     email = session['email_patient']
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     # pour tout les pays
     pays = [
         "Afghanistan", "Afrique du Sud", "Albanie", "Algérie", "Allemagne", "Andorre", "Angola",
@@ -1441,7 +1463,7 @@ def signup_patient_secretaire():
 @app.route("/secretaire/gestion_patient/liste_patient")
 @login_required(role='secretaire')
 def liste_patient_secretaire():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
     cursor.execute("SELECT * FROM patient")
     patients = cursor.fetchall()
 
@@ -1533,7 +1555,7 @@ def modifier_profile_secretaire():
         return redirect(url_for('login'))
 
     email = session['email_secretaire']
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor = get_cursor()
 
     if request.method == 'POST':
         donnes = request.form
@@ -1840,7 +1862,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM doctor WHERE email_doctor = %s", (email,))
 
@@ -1868,7 +1890,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM patient WHERE email_patient = %s", (email,))
 
@@ -1907,7 +1929,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM secretaire_medicale WHERE email_secretaire = %s", (email,))
 
@@ -1933,7 +1955,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM ambulancier WHERE email_ambulancier = %s", (email,))
 
@@ -1957,7 +1979,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM caissier WHERE email_caissier = %s", (email,))
 
@@ -1981,7 +2003,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM gestionnaire_logistique WHERE email_logistique = %s", (email,))
 
@@ -2005,7 +2027,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM gestionnaire_stock WHERE email_stock = %s", (email,))
 
@@ -2029,7 +2051,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM infirmier WHERE email_infirmier = %s", (email,))
 
@@ -2053,7 +2075,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor = get_cursor()
 
             cursor.execute("SELECT nom_utilisateur FROM interne_medecine WHERE email_interne = %s", (email,))
 
