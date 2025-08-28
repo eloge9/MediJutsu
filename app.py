@@ -1,9 +1,6 @@
 import os
 from flask import Flask, render_template, redirect, url_for, session, request, flash,make_response, jsonify
 import hashlib
-
-from flask_mysqldb import MySQL
-
 from credentials import *
 from flask_mail import Mail, Message
 import re
