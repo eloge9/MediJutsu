@@ -1,4 +1,5 @@
 [phases.setup]
+# Installer les packages système nécessaires à WeasyPrint
 packages = [
     "python312",
     "cairo",
@@ -11,7 +12,8 @@ packages = [
     "libxml2",
     "libxslt",
     "freetype",
-    "harfbuzz"
+    "harfbuzz",
+    "pkg-config"
 ]
 
 [phases.install]
