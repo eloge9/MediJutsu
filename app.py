@@ -7,7 +7,7 @@ import re
 from models import db, Consultation, Patient, Doctor, Admission, Sortie, Produit, SecretaireMedicale, RendezVous
 from datetime import  datetime, date, time, timedelta
 from flask_migrate import Migrate
-from weasyprint import HTML
+from playwright.sync_api import sync_playwright
 from io import BytesIO
 from functools import wraps
 import pymysql
@@ -3063,22 +3063,22 @@ def voir_consultation_doctor(id):
 @app.route('/doctor/consultation/<int:id>/telecharger')
 @login_required()
 def telecharger_consultation(id):
-    # Récupère la consultation depuis la base
     consultation = Consultation.query.get_or_404(id)
 
-    # Génère le HTML depuis le template
-    html = render_template(
+    html_content = render_template(
         "doctor/consultation/pdf_consultation.html",
         consultation=consultation,
-        now=datetime.now  # Permet d'afficher la date/heure actuelle dans le template
+        now=datetime.now
     )
 
-    # Génère le PDF avec WeasyPrint
-    # base_url = request.url_root pour que toutes les ressources statiques soient accessibles
-    pdf = HTML(string=html, base_url=request.url_root).write_pdf()
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html_content, wait_until="networkidle")
+        pdf_bytes = page.pdf(format="A4", print_background=True)
+        browser.close()
 
-    # Crée la réponse pour forcer le téléchargement
-    response = make_response(pdf)
+    response = make_response(pdf_bytes)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=consultation_{id}.pdf'
 
