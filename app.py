@@ -3063,22 +3063,39 @@ def voir_consultation_doctor(id):
 @app.route('/doctor/consultation/<int:id>/telecharger')
 @login_required()
 def telecharger_consultation(id):
+    # Récupère la consultation depuis la base
     consultation = Consultation.query.get_or_404(id)
 
+    # Génère le HTML depuis le template
     html_content = render_template(
         "doctor/consultation/pdf_consultation.html",
         consultation=consultation,
-        now=datetime.now
+        now=datetime.now()  # Permet d'afficher la date/heure actuelle
     )
 
+    # Crée un fichier temporaire pour le PDF
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+        pdf_path = tmp_pdf.name
+
+    # Génération du PDF avec Playwright + Chromium
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
+        # Charge le HTML directement dans la page
         page.set_content(html_content, wait_until="networkidle")
-        pdf_bytes = page.pdf(format="A4", print_background=True)
+        # Génère le PDF
+        page.pdf(path=pdf_path, format="A4", print_background=True)
         browser.close()
 
-    response = make_response(pdf_bytes)
+    # Lit le PDF généré
+    with open(pdf_path, "rb") as f:
+        pdf_data = f.read()
+
+    # Supprime le fichier temporaire
+    os.remove(pdf_path)
+
+    # Crée la réponse HTTP pour téléchargement
+    response = make_response(pdf_data)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=consultation_{id}.pdf'
 

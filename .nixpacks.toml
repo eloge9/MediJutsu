@@ -1,7 +1,7 @@
 # .nixpacks.toml
 
 [phases.setup]
-# Packages système nécessaires
+# Packages système nécessaires pour Flask, Playwright et PDF
 packages = [
     "python310",          # Python 3.10
     "curl",
@@ -22,6 +22,9 @@ packages = [
     "libgbm1",
     "fonts-liberation",   # fonts système
     "ttf-ubuntu-font-family",
+    "libssl-dev",         # pour HTTPS si nécessaire
+    "libffi-dev",         # pour certaines libs Python
+    "build-essential",    # compilation éventuelle de dépendances
 ]
 
 [phases.install]
@@ -40,8 +43,9 @@ playwright install
 '''
 
 [phases.start]
-# Commande pour lancer ton app Flask
+# Commande pour lancer ton app Flask avec gunicorn
 run = '''
 . /opt/venv/bin/activate
+export PATH=/opt/venv/bin:$PATH
 gunicorn app:app -b 0.0.0.0:8080
 '''
