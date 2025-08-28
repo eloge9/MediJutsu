@@ -1,39 +1,31 @@
-import os
-from flask import Flask, render_template, redirect, url_for, session, request, flash,make_response, jsonify
+from flask import Flask, render_template, redirect, url_for, session, request, flash, make_response, jsonify
+from flask_mysqldb import MySQL
+import MySQLdb.cursors
 import hashlib
 from credentials import *
 from flask_mail import Mail, Message
-from flask_mysqldb import MySQL
 import re
 from models import db, Consultation, Patient, Doctor, Admission, Sortie, Produit, SecretaireMedicale, RendezVous
-from datetime import  datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta
 from flask_migrate import Migrate
-from playwright.sync_api import sync_playwright
+from xhtml2pdf import pisa
 from io import BytesIO
 from functools import wraps
-import pymysql
-
-
-
-pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 
 # pour la base de donner
-app.config['SECRET_KEY']=my_token
+app.config['SECRET_KEY'] = my_token
 app.config['MYSQL_HOST'] = my_host
 app.config['MYSQL_USER'] = my_user
 app.config['MYSQL_PASSWORD'] = my_password
-app.config['MYSQL_DB'] =  my_db
-app.config['MYSQL_CURSORCLASS'] =my_CURSORCLASS
-app.config['MYSQL_PORT'] = my_port
+app.config['MYSQL_DB'] = my_db
+app.config['MYSQL_CURSORCLASS'] = my_CURSORCLASS
 
 # pour la base de donner ORM
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{my_user}:{my_password}@{my_host}:{my_port}/{my_db}'
-
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{my_user}:{my_password}@{my_host}/{my_db}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = True
-
 
 # Initialisation pour la mise a jour des tables lors de la modification du model
 migrate = Migrate(app, db)
@@ -45,7 +37,7 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-#pour l'envoie de Email
+# pour l'envoie de Email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USE_SSL'] = True
@@ -56,37 +48,17 @@ app.config['MAIL_DEFAULT_SENDER'] = ('MediJutsu', 'elogegomina@gmail.com')
 mail = Mail(app)
 
 mysql = MySQL()
+mysql.init_app(app)
 
 app.secret_key = my_secret_key
 
-#les pattern
+# les pattern
 pattern_email = r'(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))'
 pattern_phone = r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$'
 
-
-def get_cursor():
-    """
-    Retourne un 'curseur' compatible DictCursor pour remplacer MySQLdb
-    """
-    class CursorWrapper:
-        def execute(self, query, params=None):
-            self.result = mysql.session.execute(query, params or {})
-            return self.result
-
-        def fetchone(self):
-            return self.result.mappings().first()
-
-        def fetchall(self):
-            return self.result.mappings().all()
-
-        def commit(self):
-            mysql.session.commit()
-
-    return CursorWrapper()
-
-
-
 """debut decorateur autentification"""
+
+
 # autentificaton
 def login_required(role=None):
     def decorator(f):
@@ -122,30 +94,36 @@ def login_required(role=None):
                         return redirect(url_for('index'))
 
             return f(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 
 """fin decorateur authentifiation"""
 
 """debut admin"""
-#admin
+
+
+# admin
 @app.route("/admin")
 @login_required(role='admin')
 def index():
     return render_template("admin/index_admin.html")
 
-#admin liste admin
+
+# admin liste admin
 @app.route('/admin/liste_admin')
 @login_required(role='admin')
 def liste_admin():
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT ident, nom_complet, email_admin, numero_telephone FROM admin")
     admins = cursor.fetchall()
     cursor.close()
     return render_template("admin/gestion_admin/liste_admin.html", admins=admins)
 
-#suprimer admin
+
+# suprimer admin
 @app.route('/admin/supprimer/<int:id>', methods=['GET', 'POST'])
 @login_required(role='admin')
 def supprimer_admin(id):
@@ -164,10 +142,10 @@ def supprimer_admin(id):
     return redirect(url_for('liste_admin'))
 
 
-#modifier admin
+# modifier admin
 @app.route("/modifier-admin/<int:id>", methods=["GET", "POST"])
 def modifier_admin(id):
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == "POST":
         nom_complet = request.form['nom_complet']
@@ -190,17 +168,18 @@ def modifier_admin(id):
     return render_template("admin/gestion_admin/modifier_admin.html", admin=admin)
 
 
-#liste docteur admin
+# liste docteur admin
 @app.route("/admin/liste_docteur")
 def liste_docteur_admin():
     if 'email_admin' not in session:
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM doctor")
     doctors = cursor.fetchall()
     return render_template("admin/gestion_docteur/Liste_docteur.html", doctors=doctors)
+
 
 # uprimer admin
 @app.route('/admin/supprimer_docteur/<int:id>')
@@ -212,12 +191,14 @@ def supprimer_docteur(id):
     flash("Médecin supprimé avec succès.", "success")
     return redirect(url_for('liste_docteur_admin'))
 
-#profile admin
+
+# profile admin
 @app.route('/admin/voir/<int:id>')
 @login_required(role='admin')
 def voir_admin(id):
-    cursor = get_cursor()
-    cursor.execute("SELECT ident, nom_complet, email_admin, numero_telephone, date_inscription FROM admin WHERE ident = %s", (id,))
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(
+        "SELECT ident, nom_complet, email_admin, numero_telephone, date_inscription FROM admin WHERE ident = %s", (id,))
     admin = cursor.fetchone()  # Un seul admin
 
     if not admin:
@@ -226,20 +207,22 @@ def voir_admin(id):
 
     return render_template("admin/gestion_admin/profile_admin.html", admin=admin)
 
+
 # voir profile docteur par admin
 @app.route('/admin/docteur/profile/<int:id>')
 @login_required(role='admin')
 def profile_doctor_admin(id):
     return render_template("admin/gestion_docteur/voir_profile_doctor.html")
 
+
 # mmodifier profile docteur par admin
 @app.route('/admin/docteur/modifier_profil/<int:id>')
 @login_required(role='admin')
 def modifier_profile_doctor_admin(id):
-
     return render_template("admin/gestion_docteur/modifier_docteur.html")
 
-#liste des patient admin
+
+# liste des patient admin
 @app.route("/admin/liste_patient")
 @login_required(role='admin')
 def liste_patient_admin():
@@ -247,25 +230,28 @@ def liste_patient_admin():
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM patient")
     patients = cursor.fetchall()
 
     return render_template("admin/gestion_patient/liste_patient.html", patients=patients)
 
-#modifier profiel pateint admin
+
+# modifier profiel pateint admin
 @app.route('/admin/patient/<int:id>/modifier_profile')
 @login_required(role='admin')
 def modifier_profile_patient_admin(id):
     return render_template("admin/gestion_patient/modifier_patient.html")
 
-#voir profile pateitn admin
+
+# voir profile pateitn admin
 @app.route('/admin/patient/<int:id>/voir_profile')
 @login_required(role='admin')
 def profile_patient_admin(id):
     return render_template("admin/gestion_patient/voir_profile_patient.html")
 
-#surpimer pateirna admin
+
+# surpimer pateirna admin
 @app.route("/admin/patient/supprimer/<int:id>")
 @login_required(role='admin')
 def supprimer_patient_admin(id):
@@ -279,7 +265,8 @@ def supprimer_patient_admin(id):
     flash("Le patient a été supprimé avec succès.", "success")
     return redirect(url_for('liste_patient_admin'))
 
-#liste secretaire medical admin
+
+# liste secretaire medical admin
 @app.route("/admin/liste_secretaire")
 @login_required(role='admin')
 def liste_secretaire_admin():
@@ -287,11 +274,12 @@ def liste_secretaire_admin():
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM secretaire_medicale")
     secretaires = cursor.fetchall()
 
     return render_template("admin/gestion_secretaire_medicale/liste_secretaire_medicale.html", secretaires=secretaires)
+
 
 # supression secretaire medical admin
 @app.route("/admin/secretaire/supprimer/<int:id>")
@@ -307,7 +295,8 @@ def supprimer_secretaire_admin(id):
     flash("Secrétaire médicale supprimée avec succès.", "success")
     return redirect(url_for('liste_secretaire_admin'))
 
-#voir profile secretaire medical admin
+
+# voir profile secretaire medical admin
 @app.route("/admin/secretaire/<int:id>/profile")
 @login_required(role='admin')
 def voir_secretaire_admin(id):
@@ -315,7 +304,7 @@ def voir_secretaire_admin(id):
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM secretaire_medicale WHERE ident = %s", (id,))
     secretaire = cursor.fetchone()
 
@@ -323,7 +312,9 @@ def voir_secretaire_admin(id):
         flash("Secrétaire introuvable.", "danger")
         return redirect(url_for('liste_secretaire_admin'))
 
-    return render_template("admin/gestion_secretaire_medicale/voir_profile_secretaire_medicale.html", secretaire=secretaire)
+    return render_template("admin/gestion_secretaire_medicale/voir_profile_secretaire_medicale.html",
+                           secretaire=secretaire)
+
 
 # modifier profil secretaire medical admin
 @app.route("/admin/secretaire/<int:id>/modifier", methods=['GET', 'POST'])
@@ -331,44 +322,46 @@ def voir_secretaire_admin(id):
 def modifier_secretaire_admin(id):
     return render_template("admin/gestion_secretaire_medicale/modifier_secretaire_medicale.html")
 
+
 """fin admin"""
 
-
-
 """debut ambulance """
+
+
 @app.route("/ambulance")
 @login_required(role='ambulance')
 def index_ambulance():
     return render_template("ambulance/index_ambulance.html")
 
+
 @app.route("/modifier_profile_ambulancier")
 @login_required(role='ambulance')
 def modifier_profile_ambulancier():
     return render_template("ambulance/gestion_ambulance/modiifer_profile.html")
+
+
 """fin ambulance"""
 
-
-
-
 """debut caissier"""
+
+
 @app.route("/caissier")
 @login_required(role='caissier')
 def index_caissier():
     return (render_template("caissier/index_caissier.html"))
+
 
 @app.route("/caissier/modifier_profile_caissier")
 @login_required(role='caissier')
 def modifier_profile_caissier():
     return render_template("caissier/gestion_caissier/modiifer_profile.html")
 
+
 """fin caissier"""
 
-
-
-
-
-
 """debut docteur"""
+
+
 # docteur
 @app.route("/doctor")
 @login_required(role='doctor')
@@ -411,11 +404,13 @@ def index_doctor():
                            patients=patients,
                            stats=stats)
 
+
 # liste docteur docteur
 @app.route("/doctor/liste_doctor")
 @login_required(role='doctor')
 def liste_doctor():
     return render_template("doctor/gestion_docteur/liste_doctor.html")
+
 
 # modification profile docteur
 @app.route("/doctor/modifier_profile", methods=['GET', 'POST'])
@@ -426,7 +421,7 @@ def modifier_profile_doctor():
         return redirect(url_for('login'))
 
     email = session['email_doctor']
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == 'POST':
         donnes = request.form
@@ -491,8 +486,6 @@ def modifier_profile_doctor():
         else:
             hashed_password = ancien_profil['password']
 
-
-
         # Préparer les valeurs, en gardant l'ancienne si champ vide
         nom_utilisateur = nom_utilisateur or ancien_profil['nom_utilisateur']
         nom_complet = nom_complet or ancien_profil['nom_complet']
@@ -525,9 +518,9 @@ def modifier_profile_doctor():
         heure_fin_samedi = heure_fin_samedi or ancien_profil.get('heure_fin_samedi')
 
         # verifier si le numero est valide
-        if numero_telephone==ancien_profil['numero_telephone']:
+        if numero_telephone == ancien_profil['numero_telephone']:
             pass
-        elif re.match(pattern_phone, numero_telephone) :
+        elif re.match(pattern_phone, numero_telephone):
             pass
         else:
             print("tel incorect")
@@ -630,27 +623,32 @@ def modifier_profile_doctor():
 
     return render_template("doctor/gestion_docteur/modifier_profile.html", pays=pays, doctor=doctor)
 
+
 @app.route("/doctor/profile_doctor")
 @login_required(role='doctor')
 def profile_doctor():
     return render_template("doctor/gestion_docteur/profile_doctor.html")
 
-#doctor patient
+
+# doctor patient
 @app.route("/doctor/liste_patient")
 @login_required(role='doctor')
 def liste_patient_doctor():
     return render_template("doctor/gestion_patient/liste_patient.html")
 
-#doctor conge presence
+
+# doctor conge presence
 @app.route("/doctor/conge_presence/congé")
 @login_required(role='doctor')
 def conge_doctor():
     return render_template("doctor/conge_presence/conge.html")
 
+
 @app.route("/doctor/conge_presence/présence")
 @login_required(role='doctor')
 def presence_doctor():
     return render_template("doctor/conge_presence/presence.html")
+
 
 # doctor galeri et evenement
 @app.route("/doctor/actualiter")
@@ -658,15 +656,18 @@ def presence_doctor():
 def actualiter_doctor():
     return render_template("doctor/galerie_&_evenement/actualiter.html")
 
+
 @app.route("/doctor/evenement")
 @login_required(role='doctor')
 def evenement_doctor():
     return render_template("doctor/galerie_&_evenement/evenement.html")
 
+
 @app.route("/doctor/galerie")
 @login_required(role='doctor')
 def galerie_doctor():
     return render_template("doctor/galerie_&_evenement/galerie.html")
+
 
 # doctor ia
 @app.route("/doctor/ia/resumer_dossier_medical")
@@ -674,15 +675,18 @@ def galerie_doctor():
 def resumer_dossier_doctor():
     return render_template("doctor/gestion_ia/resumer_dossier.html")
 
+
 @app.route("/doctor/ia/sugection_de_traitement")
 @login_required(role='doctor')
 def sugetion_doctor():
     return render_template("doctor/gestion_ia/sugection_traitement.html")
 
+
 @app.route("/doctor/ia/surleillance_patient")
 @login_required(role='doctor')
 def surveillance_dossier_doctor():
     return render_template("doctor/gestion_ia/survellanc_patient.html")
+
 
 # doctor messagerie
 @app.route("/doctor/messagerie")
@@ -690,17 +694,20 @@ def surveillance_dossier_doctor():
 def messageire_doctor():
     return render_template("doctor/gestion_messagerie/messagerie.html")
 
-#doctor hospitalisation
+
+# doctor hospitalisation
 @app.route("/doctor/hospitalisation")
 @login_required(role='doctor')
 def hospitalisation_doctor():
     return render_template("doctor/hospitalisation/hospitalisation.html")
 
-#parametre dcoctor
+
+# parametre dcoctor
 @app.route("/doctor/parametre")
 @login_required(role='doctor')
 def parametre_doctor():
     return render_template("doctor/parametre/parametre.html")
+
 
 # fiche de paie doctor
 @app.route("/doctor/salaire/fiche_de_paie")
@@ -708,31 +715,37 @@ def parametre_doctor():
 def fiche_de_paie_doctor():
     return render_template("doctor/salaire/fiche_de_paie.html")
 
+
 # dossiermedical doctor
 @app.route("/doctor/dossier_medical")
 @login_required(role='doctor')
 def dossier_medical_doctor():
     return render_template("doctor/dossier_medical/dossier_medical.html")
+
+
 @app.route("/doctor/ajout_patient")
 @login_required(role='doctor')
 def add_patient_doctor():
     return render_template("doctor/gestion_patient/ajout_patient.html")
+
 
 @app.route("/doctor/modifier_patient")
 @login_required(role='doctor')
 def modifier_patient_doctor():
     return render_template("doctor/gestion_patient/modifier_patient.html")
 
+
 """fin docteur"""
 
-
-
 """debut gestionaire de stock"""
-#gestonaire de stoCK
+
+
+# gestonaire de stoCK
 @app.route("/gestionaire_stock")
 @login_required(role='stock')
 def index_gestionaire_stock():
     return render_template("gestionaire_stock/index_gestionaire_stock.html")
+
 
 @app.route("/gestionaire_stock/modifier_profile_stock")
 @login_required(role='stock')
@@ -742,10 +755,12 @@ def modifier_profile_stock():
 
 """fin gestionnaire de stock"""
 
+
 @app.route("/infirmier")
 @login_required(role='patient')
 def index_infirmier():
     return render_template("infirmier/index_infirmier.html")
+
 
 @app.route("/infirmier/modifier_profile_infirmier")
 @login_required(role='infirmier')
@@ -753,9 +768,9 @@ def modifier_profile_infirmier():
     return render_template("infirmier/gestion_infirmier/modiifer_profile.html")
 
 
-
-
 """debut patient"""
+
+
 @app.route("/patient")
 @login_required(role='patient')
 def index_patient():
@@ -777,18 +792,16 @@ def index_patient():
     if patient.date_naissance:
         today = date.today()
         patient.age = today.year - patient.date_naissance.year - (
-                    (today.month, today.day) < (patient.date_naissance.month, patient.date_naissance.day))
+                (today.month, today.day) < (patient.date_naissance.month, patient.date_naissance.day))
     else:
         patient.age = "Non renseigné"
     return render_template(
         "patient/index_patient.html",
         patient=patient,
-        rapports=[{"nom": r.motif or "Consultation", "date": r.date_consultation.strftime("%d/%m/%Y")} for r in rapports],
+        rapports=[{"nom": r.motif or "Consultation", "date": r.date_consultation.strftime("%d/%m/%Y")} for r in
+                  rapports],
         rapport_detail=None  # tu peux remplacer par un rapport spécifique si nécessaire
     )
-
-
-
 
 
 # modifier profile patient
@@ -800,7 +813,7 @@ def modifier_profile_patient():
         return redirect(url_for('login'))
 
     email = session['email_patient']
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     # pour tout les pays
     pays = [
         "Afghanistan", "Afrique du Sud", "Albanie", "Algérie", "Allemagne", "Andorre", "Angola",
@@ -936,8 +949,8 @@ def modifier_profile_patient():
             cursor.close()
             return redirect(request.url)
 
-
     return render_template("patient/gestion_patient/modifier_profile.html", patient=patient, pays=pays)
+
 
 @app.route('/patient/profile')
 @login_required(role='patient')
@@ -945,13 +958,12 @@ def profile_patient():
     return render_template('patient/gestion_patient/profile_patient.html')
 
 
-
 """fin patient"""
 
-
-
 """debut secretaire secretaire medical"""
-#secretaiere medical
+
+
+# secretaiere medical
 @app.route("/secretaire_medicales")
 @login_required(role='secretaire')
 def index_secretaire_medicales():
@@ -1024,8 +1036,9 @@ def index_secretaire_medicales():
         patients_this_week=patients_this_week,
         patients_last_week=patients_last_week,
         pourcentage=round(pourcentage),
-                           labels=labels, data=data
+        labels=labels, data=data
     )
+
 
 @app.route('/rendezvous/confirmer/<int:rdv_id>')
 def confirmer_rendezvous(rdv_id):
@@ -1037,7 +1050,9 @@ def confirmer_rendezvous(rdv_id):
 
 
 """admission"""
-#admission_patient  secretaire medicale
+
+
+# admission_patient  secretaire medicale
 @app.route("/secretaire_medicales/admission_patient", methods=['GET', 'POST'])
 @login_required(role='secretaire')
 def admission_patient():
@@ -1176,7 +1191,8 @@ def admission_patient():
 
     return render_template("secretaire_medicales/gestion_patients/admissions_patient.html", patients=patients_data)
 
-#sortie_patient  secretaire medicale
+
+# sortie_patient  secretaire medicale
 @app.route("/secretaire/sortie/<int:admission_id>", methods=['GET', 'POST'])
 @login_required(role='secretaire')
 def creer_sortie(admission_id):
@@ -1224,9 +1240,7 @@ def creer_sortie(admission_id):
     )
 
 
-
-
-#liste des admition et qui permet la sortie
+# liste des admition et qui permet la sortie
 
 @app.route("/secretaire_medicales/liste_admission")
 @login_required(role='secretaire')
@@ -1235,7 +1249,8 @@ def liste_admissions():
     print(admissions)
     return render_template("secretaire_medicales/gestion_patients/liste_admissions.html", admissions=admissions)
 
-#modifier admission
+
+# modifier admission
 @app.route('/admission/modifier/<int:admission_id>', methods=['GET', 'POST'])
 def modifier_admission(admission_id):
     admission = Admission.query.get_or_404(admission_id)
@@ -1271,7 +1286,8 @@ def modifier_admission(admission_id):
     # En GET, on affiche le formulaire pré-rempli
     return render_template("secretaire_medicales/gestion_patients/admissions_patient.html", admission=admission)
 
-#modifier sortie
+
+# modifier sortie
 @app.route("/secretaire_medicales/sorties/modifier/<int:sortie_id>", methods=["GET", "POST"])
 @login_required(role="secretaire")
 def modifier_sortie(sortie_id):
@@ -1284,7 +1300,9 @@ def modifier_sortie(sortie_id):
         return redirect(url_for("liste_sorties"))
 
     return render_template("secretaire_medicales/gestion_patients/sortie_patient.html", sortie=sortie)
-#suprimer admission
+
+
+# suprimer admission
 @app.route('/secretaire/admission/supprimer/<int:admission_id>', methods=['GET', 'POST'])
 @login_required(role="secretaire")
 def supprimer_admission(admission_id):
@@ -1298,7 +1316,8 @@ def supprimer_admission(admission_id):
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
     return redirect(url_for('liste_admissions'))
 
-#sprimer sortie
+
+# sprimer sortie
 @app.route('/secretaire/sortie/supprimer/<int:sortie_id>', methods=['GET', 'POST'])
 @login_required(role='secretaire')
 def supprimer_sortie(sortie_id):
@@ -1326,7 +1345,8 @@ def voir_admission(admission_id):
         pass
     return render_template('secretaire_medicales/gestion_patients/voir_admission.html', admission=admission)
 
-#coir admission patient
+
+# coir admission patient
 @app.route('/patient/detail/admission/<int:admission_id>')
 @login_required(role='patient')
 def voir_admission_patient(admission_id):
@@ -1342,7 +1362,7 @@ def voir_admission_patient(admission_id):
     )
 
 
-#voir admission docteur
+# voir admission docteur
 @app.route('/doctor/detail/admission/<int:admission_id>')
 @login_required(role='doctor')
 def voir_admission_doctor(admission_id):
@@ -1357,7 +1377,8 @@ def voir_admission_doctor(admission_id):
         patient=patient  # <-- maintenant disponible dans le template
     )
 
-#voir sortie secretaire
+
+# voir sortie secretaire
 @app.route("/secretaire_medicales/sortie/<int:sortie_id>")
 @login_required(role='secretaire')
 def voir_sortie(sortie_id):
@@ -1366,9 +1387,11 @@ def voir_sortie(sortie_id):
     patient = None
     if sortie.admission:
         patient = Patient.query.filter_by(email_patient=sortie.admission.email).first()
-    return render_template("secretaire_medicales/gestion_patients/voir_sortie_patient.html", sortie=sortie, patient=patient)
+    return render_template("secretaire_medicales/gestion_patients/voir_sortie_patient.html", sortie=sortie,
+                           patient=patient)
 
-#voir sortie patient
+
+# voir sortie patient
 @app.route("/patient/sortie/<int:sortie_id>")
 @login_required(role='patient')
 def voir_sortie_patient(sortie_id):
@@ -1385,7 +1408,8 @@ def voir_sortie_patient(sortie_id):
         patient=patient  # <-- maintenant disponible
     )
 
-#voir soirtie docteur
+
+# voir soirtie docteur
 @app.route("/docteur/sortie/<int:sortie_id>")
 @login_required(role='doctor')
 def voir_sortie_doctor(sortie_id):
@@ -1403,7 +1427,7 @@ def voir_sortie_doctor(sortie_id):
     )
 
 
-#liste sortie patient secretaire medicale
+# liste sortie patient secretaire medicale
 @app.route("/secretaire_medicales/liste_sortie_patient")
 @login_required(role='secretaire')
 def liste_sorties():
@@ -1415,137 +1439,146 @@ def liste_sorties():
 @app.route("/secretaire/gestion_patient/signup_patient_secretaire", methods=['GET', 'POST'])
 @login_required(role='secretaire')
 def signup_patient_secretaire():
-        if request.method == 'POST':
-            donnes = request.form
-            email = donnes.get('email')
-            password = donnes.get('pwd')
-            confirm_password = donnes.get('conf_pwd')
+    if request.method == 'POST':
+        donnes = request.form
+        email = donnes.get('email')
+        password = donnes.get('pwd')
+        confirm_password = donnes.get('conf_pwd')
 
-            if password != confirm_password:
-                return "Les mots de passe ne correspondent pas. Veuillez réessayer."
+        if password != confirm_password:
+            return "Les mots de passe ne correspondent pas. Veuillez réessayer."
 
-            hashed_password = hashlib.md5(password.encode()).hexdigest()
-            cursor = mysql.connection.cursor()
+        hashed_password = hashlib.md5(password.encode()).hexdigest()
+        cursor = mysql.connection.cursor()
 
-            # Vérifier si l'email est déjà utilisé
-            cursor.execute("SELECT * FROM patient WHERE email_patient = %s", (email,))
-            existing_user = cursor.fetchone()
+        # Vérifier si l'email est déjà utilisé
+        cursor.execute("SELECT * FROM patient WHERE email_patient = %s", (email,))
+        existing_user = cursor.fetchone()
 
-            if existing_user:
-                flash("Cet email est déjà utilisé. Veuillez en utiliser un autre.", "danger")
-                return redirect(request.url)
+        if existing_user:
+            flash("Cet email est déjà utilisé. Veuillez en utiliser un autre.", "danger")
+            return redirect(request.url)
 
-            # verifier si email est valide
-            if re.match(pattern_email, email):
-                pass
-            else:
-                flash("Votre email est invalide", "danger")
-                return redirect(request.url)
-            try:
-                cursor.execute("""INSERT INTO patient (email_patient, password)
+        # verifier si email est valide
+        if re.match(pattern_email, email):
+            pass
+        else:
+            flash("Votre email est invalide", "danger")
+            return redirect(request.url)
+        try:
+            cursor.execute("""INSERT INTO patient (email_patient, password)
                                   VALUES (%s, %s)""",
-                               (email, hashed_password))
-                mysql.connection.commit()
+                           (email, hashed_password))
+            mysql.connection.commit()
 
-                # Envoi de l'email pour informer le patient
-                try:
-                    envoie_email_connection(email, password)
-                except Exception as e:
-                    print(e)
-
-                flash("Compte créé avec succès. Un email de confirmation a été envoyé.", "success")
-                return redirect(url_for('liste_patient_secretaire'))
-
+            # Envoi de l'email pour informer le patient
+            try:
+                envoie_email_connection(email, password)
             except Exception as e:
-                return f"Erreur lors de l'inscription : {e}"
+                print(e)
 
-        return render_template('secretaire_medicales/gestion_patients/signup.html')
+            flash("Compte créé avec succès. Un email de confirmation a été envoyé.", "success")
+            return redirect(url_for('liste_patient_secretaire'))
 
-#liste des patient secretaire
+        except Exception as e:
+            return f"Erreur lors de l'inscription : {e}"
+
+    return render_template('secretaire_medicales/gestion_patients/signup.html')
+
+
+# liste des patient secretaire
 @app.route("/secretaire/gestion_patient/liste_patient")
 @login_required(role='secretaire')
 def liste_patient_secretaire():
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute("SELECT * FROM patient")
     patients = cursor.fetchall()
 
     return render_template("secretaire_medicales/gestion_patients/liste_patient.html", patients=patients)
 
-#modification_patients secretaire medicale
+
+# modification_patients secretaire medicale
 @app.route("/secretaire_medicales/modification_patients")
 @login_required(role='secretaire')
 def modification_patients():
     return render_template("secretaire_medicales/gestion_patients/modification_patients.html")
 
-#fiche_de_paie secretaire medicale
+
+# fiche_de_paie secretaire medicale
 @app.route("/secretaire_medicales/fiche_de_paie")
 @login_required(role='secretaire')
 def fiche_de_paie():
     return render_template("secretaire_medicales/gestion_salaire/fiche_de_paie.html")
 
-#messagerie secretaire medicale
+
+# messagerie secretaire medicale
 @app.route("/secretaire_medicales/messagerie")
 @login_required(role='secretaire')
 def messagerie():
     return render_template("secretaire_medicales/gestion_messageries/messagerie.html")
 
-#liste_departement secretaire medicale
+
+# liste_departement secretaire medicale
 @app.route("/secretaire_medicales/liste_departement")
 @login_required(role='secretaire')
 def liste_departement():
     return render_template("secretaire_medicales/gestion_departement/liste_departement.html")
 
-#congé_personnel secretaire medicale
+
+# congé_personnel secretaire medicale
 @app.route("/secretaire_medicales/congé_personnel")
 @login_required(role='secretaire')
 def congé_personnel():
     return render_template("secretaire_medicales/gestion_congé_presence/congé_personnel.html")
 
-#présence_assiduité secretaire medicale
+
+# présence_assiduité secretaire medicale
 @app.route("/secretaire_medicales/presence_assiduite")
 @login_required(role='secretaire')
 def presence_assiduite():
     return render_template("secretaire_medicales/gestion_congé_presence/presence_assiduite.html")
 
-#Reserver_chambre secretaire medicale
+
+# Reserver_chambre secretaire medicale
 @app.route("/secretaire_medicales/Reserver_chambre")
 @login_required(role='secretaire')
 def Reserver_chambre():
     return render_template("secretaire_medicales/Gestion_chambre/Reserver_chambre.html")
 
-#add_ambulance secretaire medicale
+
+# add_ambulance secretaire medicale
 @app.route("/secretaire_medicales/add_ambulance")
 @login_required(role='secretaire')
 def add_ambulance():
     return render_template("secretaire_medicales/gestion_ambulance/add_ambulance.html")
 
-#ambulance_call_list secretaire medicale
+
+# ambulance_call_list secretaire medicale
 @app.route("/secretaire_medicales/ambulance_call_list")
 @login_required(role='secretaire')
 def ambulance_call_list():
     return render_template("secretaire_medicales/gestion_ambulance/ambulance_call_list.html")
 
-#ambulance_list secretaire medicale
+
+# ambulance_list secretaire medicale
 @app.route("/secretaire_medicales/ambulance_list")
 @login_required(role='secretaire')
 def ambulance_list():
     return render_template("secretaire_medicales/gestion_ambulance/ambulance_list.html")
 
 
-#edit_ambulance secretaire medicale
+# edit_ambulance secretaire medicale
 @app.route("/secretaire_medicales/edit_ambulance")
 @login_required(role='secretaire')
 def edit_ambulance():
     return render_template("secretaire_medicales/gestion_ambulance/edit_ambulance.html")
 
 
-
-#ajouter_patient  secretaire medicale
+# ajouter_patient  secretaire medicale
 @app.route("/secretaire_medicales/ajouter_patient")
 @login_required(role='secretaire')
 def ajouter_patient():
     return render_template("secretaire_medicales/gestion_patients/ajouter_patient.html")
-
 
 
 # modifier profile secretaire
@@ -1557,7 +1590,7 @@ def modifier_profile_secretaire():
         return redirect(url_for('login'))
 
     email = session['email_secretaire']
-    cursor = get_cursor()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == 'POST':
         donnes = request.form
@@ -1731,21 +1764,22 @@ def modifier_profile_secretaire():
         "France", "Togo", "États-Unis", "Royaume-Uni"
     ]
 
-    return render_template("secretaire_medicales/gestion _secretaire_medical/modifier_profile.html", secretaire=secretaire, pays=pays)
+    return render_template("secretaire_medicales/gestion _secretaire_medical/modifier_profile.html",
+                           secretaire=secretaire, pays=pays)
 
-#voir profile secretaire medicale
+
+# voir profile secretaire medicale
 @app.route("/secretaire_medicales/voir profile")
 @login_required(role='secretaire')
 def profile_secretaire_medicale():
     return render_template("secretaire_medicales/gestion _secretaire_medical/profile.html")
 
+
 """fin secretaire medical"""
 
-
-
-
-
 """debut internr medecie"""
+
+
 @app.route("/interne_medecine")
 @login_required(role='interne')
 def index_interne_medecine():
@@ -1756,26 +1790,30 @@ def index_interne_medecine():
 @login_required(role='interne')
 def modifier_profile_interne():
     return render_template("interne_medecine/gestion_interne/modiifer_profile.html")
+
+
 """fin interne medecie"""
 
-
 """debut gestionnaire logistique"""
+
+
 @app.route("/gestionnaire_logistique")
 @login_required(role='logistique')
 def index_gestionnaire_logistique():
     return render_template("gestionaire_logistique/index_logistique.html")
+
 
 @app.route("/gestionnaire_logistique/modifier_profile_logistique")
 @login_required(role='logistique')
 def modifier_profile_logistique():
     return render_template("gestionaire_logistique/gestion_logistique/modiifer_profile.html")
 
+
 """fin gestionnaire de logistique"""
 
 
-
-#les connection
-#connection de l'admin
+# les connection
+# connection de l'admin
 def getLogin(session_key, table):
     cur = mysql.connection.cursor()
 
@@ -1787,17 +1825,17 @@ def getLogin(session_key, table):
 
         # Limiter les tables autorisées
         allowed_tables = [
-        'admin',
-        'doctor',
-        'patient',
-        'secretaire_medicale',
-        'ambulancier',
-        'caissier',
-        'gestionnaire_logistique',
-        'gestionnaire_stock',
-        'infirmier',
-        'interne_medecine'
-    ]
+            'admin',
+            'doctor',
+            'patient',
+            'secretaire_medicale',
+            'ambulancier',
+            'caissier',
+            'gestionnaire_logistique',
+            'gestionnaire_stock',
+            'infirmier',
+            'interne_medecine'
+        ]
         if table not in allowed_tables:
             raise ValueError("Table non autorisée")
 
@@ -1809,6 +1847,7 @@ def getLogin(session_key, table):
 
     cur.close()
     return loggedIn, firstName
+
 
 # Fonction is_valid
 
@@ -1842,8 +1881,11 @@ def is_valid(email, email_field, password, table):
 
     return result is not None
 
+
 """debut login"""
-#fonction login
+
+
+# fonction login
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -1864,7 +1906,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM doctor WHERE email_doctor = %s", (email,))
 
@@ -1876,7 +1918,7 @@ def login():
             doctor = Doctor.query.filter_by(email_doctor=email).first()
             session['doctor_id'] = doctor.ident
 
-            if result and result['nom_utilisateur']:# Si rempli
+            if result and result['nom_utilisateur']:  # Si rempli
                 session['role'] = "doctor"
                 return redirect(url_for('index_doctor'))
 
@@ -1892,7 +1934,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM patient WHERE email_patient = %s", (email,))
 
@@ -1931,7 +1973,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM secretaire_medicale WHERE email_secretaire = %s", (email,))
 
@@ -1957,7 +1999,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM ambulancier WHERE email_ambulancier = %s", (email,))
 
@@ -1981,7 +2023,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM caissier WHERE email_caissier = %s", (email,))
 
@@ -2005,7 +2047,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM gestionnaire_logistique WHERE email_logistique = %s", (email,))
 
@@ -2029,7 +2071,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM gestionnaire_stock WHERE email_stock = %s", (email,))
 
@@ -2053,7 +2095,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM infirmier WHERE email_infirmier = %s", (email,))
 
@@ -2077,7 +2119,7 @@ def login():
 
             # Connexion à la base
 
-            cursor = get_cursor()
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
             cursor.execute("SELECT nom_utilisateur FROM interne_medecine WHERE email_interne = %s", (email,))
 
@@ -2097,11 +2139,13 @@ def login():
             flash('Email ou mot de passe incorrect.', 'danger')
             return redirect(url_for('login'))
     return render_template('admin/connexion/login.html')
+
+
 """fin login"""
 
-
-
 """debut logout"""
+
+
 # les deconnection
 @app.route('/logout')
 @login_required()
@@ -2146,16 +2190,14 @@ def logout():
 
     flash(f"Déconnexion de {role or 'utilisateur inconnu'} {nom}", 'success')
     return redirect(url_for('login'))
+
+
 """fin logout"""
 
 
-
-
-
 # les inscription
-#systeme denvoie Email
+# systeme denvoie Email
 def envoie_email_connection(email, mot_de_passe):
-
     # ... ici tu enregistres le personnel dans la base de données ...
 
     # Envoi de l'e-mail automatique
@@ -2166,18 +2208,19 @@ def envoie_email_connection(email, mot_de_passe):
 
             Bienvenue sur MediJutsu ! Votre compte a été créé avec succès. Vous pouvez désormais vous connecter à notre 
             application de gestion hospitalière à l'aide des identifiants suivants :
-            
+
             - Email : {email}
             - Mot de passe : {mot_de_passe}
-            
+
             Merci de votre confiance.
-            
+
             L'équipe de support.
             """
     )
     mail.send(msg)
 
     return redirect(url_for("index"))  # ou une page de succès
+
 
 # inscription de l'admininsatrateur
 @app.route("/signup_admin", methods=['GET', 'POST'])
@@ -2205,8 +2248,6 @@ def signup():
             cursor.execute("SELECT * FROM admin WHERE email_admin = %s", (email,))
             existing_user = cursor.fetchone()
 
-
-
             # verifier si email est valide
             if re.match(pattern_email, email):
                 if existing_user:
@@ -2229,11 +2270,12 @@ def signup():
             except Exception as e:
                 return f"Erreur lors de l'inscription : {e}"
 
-        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName, role = "admin")
+        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName, role="admin")
     else:
         return redirect(url_for('login'))
 
-#inscription du docteur
+
+# inscription du docteur
 @app.route("/signup_docteur", methods=['POST', 'GET'])
 @login_required(role='admin')
 def signup_doctor():
@@ -2250,8 +2292,6 @@ def signup_doctor():
 
             hashed_password = hashlib.md5(password.encode()).hexdigest()
             cursor = mysql.connection.cursor()
-
-
 
             # Vérifier si l'email est déjà utilisé
             cursor.execute("SELECT * FROM doctor WHERE email_doctor = %s", (email,))
@@ -2287,15 +2327,15 @@ def signup_doctor():
             except Exception as e:
                 return f"Erreur lors de l'inscription : {e}"
 
-        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName, role = "doctor")
+        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName, role="doctor")
     else:
         return redirect(url_for('login'))
+
 
 # #inscription du patient
 @app.route("/signup_patient_admin", methods=['GET', 'POST'])
 @login_required(role='admin')
 def signup_patient_admin():
-
     if 'email_admin' in session:
         loggedIn, firstName = getLogin('email_admin', 'admin')
         if request.method == 'POST':
@@ -2401,6 +2441,7 @@ def signup_patient():
 
     return render_template('patient/connexion/signup_patient.html')
 
+
 # inscription du secretaire medical
 @app.route("/signup_secretaire_medical", methods=['POST', 'GET'])
 @login_required(role='admin')
@@ -2503,7 +2544,8 @@ def signup_ambulancier():
             except Exception as e:
                 return f"Erreur lors de l'inscription : {e}"
 
-        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName, role="ambulancier")
+        return render_template('admin/connexion/signup.html', loggedIn=loggedIn, firstName=firstName,
+                               role="ambulancier")
     else:
         return redirect(url_for('login'))
 
@@ -2616,7 +2658,7 @@ def signup_logistique():
         return redirect(url_for('login'))
 
 
-#inscription du gestionnaire_stock
+# inscription du gestionnaire_stock
 @app.route("/signup_gestionnaire_stock", methods=['POST', 'GET'])
 @login_required(role='admin')
 def signup_stock():
@@ -2670,7 +2712,7 @@ def signup_stock():
         return redirect(url_for('login'))
 
 
-#inscription du infirmier
+# inscription du infirmier
 @app.route("/signup_infirmier", methods=['POST', 'GET'])
 @login_required(role='admin')
 def signup_infirmier():
@@ -2724,7 +2766,7 @@ def signup_infirmier():
         return redirect(url_for('login'))
 
 
-#inscription du interne_medecine
+# inscription du interne_medecine
 @app.route("/signup_interne_medecine", methods=['POST', 'GET'])
 @login_required(role='admin')
 def signup_interne():
@@ -2780,8 +2822,9 @@ def signup_interne():
 
 """fin signup"""
 
-
 """debut consultation"""
+
+
 # gestion de conssutation
 # ajouter une consultation secretaire medical
 @app.route('/secretaire/consultations/nouvelle', methods=['GET', 'POST'])
@@ -2848,7 +2891,7 @@ Veuillez vous connecter à MediJustus pour plus de détails.
         if patient and patient.email_patient:
             msg_patient = Message(
                 subject="Votre consultation a été enregistrée - MediJustus",
-                recipients=[patient.email_patient,"gominaeloge@gmail.com"],
+                recipients=[patient.email_patient, "gominaeloge@gmail.com"],
                 body=f"""
 Bonjour {patient.nom_complet},
 
@@ -2872,7 +2915,8 @@ Merci de vous présenter pour votre consultation.
         doctors=doctors
     )
 
-#lier consultation
+
+# lier consultation
 def lier_consultations(patient_id, nouvelle_consultation):
     # Récupérer la dernière consultation du patient (avant celle-ci)
     precedente = Consultation.query.filter(
@@ -2899,7 +2943,8 @@ def liste_consultation_secretaire():
         consultations=consultations
     )
 
-#SUPRIMER CONSULTATION
+
+# SUPRIMER CONSULTATION
 @app.route("/consultation/supprimer/<int:id>", methods=["GET", "POST"])
 def supprimer_consultation(id):
     consultation = Consultation.query.get_or_404(id)
@@ -2914,6 +2959,7 @@ def supprimer_consultation(id):
         print(e)
 
     return redirect(url_for("liste_consultation_secretaire"))
+
 
 # modifier consultation secretaire
 @app.route('/secretaire/consultation/<int:id>/modifier', methods=['GET', 'POST'])
@@ -2934,12 +2980,16 @@ def modifier_consultation(id):
     return render_template('secretaire_medicales/gestion de consultation/modifier_consltation.html',
                            consultation=consultation, patients=patients, doctors=doctors)
 
+
 # historique  consultation secretaire
 @app.route('/secretaire/historique_consultations')
 @login_required(role='secretaire')
 def historique_consultations():
-    consultations = Consultation.query.filter(Consultation.etat != None).order_by(Consultation.date_fin_consultation.desc()).all()
-    return render_template('secretaire_medicales/gestion de consultation/historique_consultations.html', consultations=consultations)
+    consultations = Consultation.query.filter(Consultation.etat != None).order_by(
+        Consultation.date_fin_consultation.desc()).all()
+    return render_template('secretaire_medicales/gestion de consultation/historique_consultations.html',
+                           consultations=consultations)
+
 
 # voir detail d'une consultation secretaire
 @app.route('/secretaire/voir/consultation/<int:id>')
@@ -2950,13 +3000,16 @@ def voir_consultation_secretaire(id):
                            consultation=consultation,
                            layout="secretaire_medicales/base_secretaire_medicales.html")
 
+
 # lisde des consultation medecin
 @app.route('/doctor/<int:doctor_id>/consultations')
 @login_required(role='doctor')
 def liste_consultations_medecin(doctor_id):
-    consultations = Consultation.query.filter_by(doctor_id=doctor_id).order_by(Consultation.date_consultation.desc()).all()
+    consultations = Consultation.query.filter_by(doctor_id=doctor_id).order_by(
+        Consultation.date_consultation.desc()).all()
     doctor = Doctor.query.get_or_404(doctor_id)
     return render_template('doctor/consultation/liste_consultation.html', consultations=consultations, doctor=doctor)
+
 
 # faire consultation medecin
 @app.route('/docteur/consultations/<int:consultation_id>/completer', methods=['GET', 'POST'])
@@ -3022,6 +3075,7 @@ def completer_consultation(consultation_id):
 
     return render_template('doctor/consultation/consultation.html', consultation=consultation)
 
+
 # consulter consultation medecin
 @app.route('/doctor/consultation/historique')
 @login_required(role='doctor')
@@ -3060,30 +3114,26 @@ def voir_consultation_doctor(id):
                            layout="doctor/base_doctor.html")
 
 
-#telecharger uyne consltation en pdf
+# telecharger uyne consltation en pdf
 @app.route('/doctor/consultation/<int:id>/telecharger')
 @login_required()
 def telecharger_consultation(id):
     consultation = Consultation.query.get_or_404(id)
+    html = render_template("doctor/consultation/pdf_consultation.html",
+                           consultation=consultation,
+                           now=datetime.now)
 
-    html_content = render_template(
-        "doctor/consultation/pdf_consultation.html",
-        consultation=consultation,
-        now=datetime.now
+    pdf = BytesIO()
+    pisa.CreatePDF(html, dest=pdf)
+    pdf.seek(0)
+
+    return make_response(
+        pdf.read(),
+        {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": f"attachment; filename=consultation_{id}.pdf"
+        }
     )
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-        page.set_content(html_content, wait_until="networkidle")
-        pdf_bytes = page.pdf(format="A4", print_background=True)
-        browser.close()
-
-    response = make_response(pdf_bytes)
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=consultation_{id}.pdf'
-
-    return response
 
 
 # historique des consultation patient
@@ -3102,7 +3152,8 @@ def historique_patient():
     return render_template("patient/historique_patient/historique_patient.html",
                            historique_consultations=consultations)
 
-#detali consumltation patient
+
+# detali consumltation patient
 @app.route("/patient/consultation/<int:id>")
 @login_required(role="patient")
 def voir_consultation_patient(id):
@@ -3123,6 +3174,7 @@ notifications = [
     {"id": 2, "message": "Nouveau message du docteur", "lu": False}
 ]
 
+
 @app.route("/get_notifications")
 def get_notifications():
     notifs = [n for n in notifications if not n["lu"]]
@@ -3130,6 +3182,7 @@ def get_notifications():
         "count": len(notifs),
         "notifications": notifs
     })
+
 
 @app.route("/mark_as_read/<int:notif_id>")
 def mark_as_read(notif_id):
@@ -3142,39 +3195,18 @@ def mark_as_read(notif_id):
 """fin consultation"""
 
 
-
-
-#modifier renistaliser mot de pass
+# modifier renistaliser mot de pass
 @app.route("/Renistialiser_mot_de_passe")
 @login_required()
 def reset_pasword():
     return render_template("admin/connexion/reset_password.html")
+
 
 # mot de pass oublier
 @app.route("/mot_de_passe_oublié")
 @login_required()
 def forgot_password():
     return render_template("admin/connexion/forgot_password.html")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # Ajouter un inventaire
@@ -3192,12 +3224,13 @@ def ajout_inventaire():
 @app.route("/gestionaire_stock/suppression_inventaire")
 @login_required(role='admin')
 def suppression_inventaire():
-    produits=Produit.query.all()
+    produits = Produit.query.all()
     if 'email_admin' not in session:
         flash("Connectez-vous d'abord", "warning")
         return redirect(url_for('login'))
 
-    return render_template("gestionaire_stock/gestion_stock/suppression_inventaire.html",   produit=produits[0])
+    return render_template("gestionaire_stock/gestion_stock/suppression_inventaire.html", produit=produits[0])
+
 
 # modifier des inventaire
 @app.route("/gestionaire_stock/modification_inventaire")
@@ -3209,6 +3242,7 @@ def modification_inventaire():
 
     return render_template("gestionaire_stock/gestion_stock/suppression_inventaire.html")
 
+
 # suivi en temps réel
 @app.route("/gestionaire_stock/suivi_en_temps_reel")
 @login_required(role='admin')
@@ -3219,7 +3253,8 @@ def suivi_en_temps_reel():
 
     return render_template("gestionaire_stock/gestion_stock/suivi_en_temps_reel.html")
 
-#alerte stock
+
+# alerte stock
 @app.route("/Module_ia/alerte_stock")
 @login_required(role='admin')
 def alerte_stock():
@@ -3229,7 +3264,8 @@ def alerte_stock():
 
     return render_template("gestionaire_stock/Module_ia/alerte_stock.html")
 
-#approvisionement
+
+# approvisionement
 @app.route("/Module_ia/suggestion_approvisionement")
 @login_required(role='admin')
 def suggestion_approvisionement():
@@ -3240,14 +3276,11 @@ def suggestion_approvisionement():
     return render_template("gestionaire_stock/Module_ia/suggestion_approvisionement.html")
 
 
-
-
-
-
 # gestion de rendez vous
 """debut rendezvous"""
 
-#prendre rendezvous- parient
+
+# prendre rendezvous- parient
 @app.route('/patient/rendezvous/nouveau', methods=['GET', 'POST'])
 @login_required(role='patient')
 def nouveau_rendezvous():
@@ -3307,7 +3340,8 @@ def nouveau_rendezvous():
 
     return render_template('patient/gestion_rendez_vous/nouveau_rendezvous.html', medecins=medecins)
 
-#calendrier rendevous patient
+
+# calendrier rendevous patient
 @app.route('/patient/rendezvous/calendrier')
 @login_required(role='patient')
 def calendrier_rendezvous():
@@ -3332,6 +3366,7 @@ def calendrier_rendezvous():
 
     return render_template('patient/gestion_rendez_vous/calendrier.html', events=events)
 
+
 # calendrier des rendezvous docteur
 @app.route('/patient/rendezvous/<int:id>')
 @login_required(role='patient')
@@ -3347,7 +3382,8 @@ def detail_rendezvous(id):
         medecin=medecin
     )
 
-#annuler un rendezvous patient
+
+# annuler un rendezvous patient
 @app.route('/patient/rendezvous/annuler/<int:rendezvous_id>', methods=['POST'])
 @login_required(role='patient')
 def annuler_rendezvous(rendezvous_id):
@@ -3368,7 +3404,7 @@ def annuler_rendezvous(rendezvous_id):
     return redirect(url_for('calendrier_rendezvous'))
 
 
-#doctor rendevous
+# doctor rendevous
 @app.route("/doctor/rendez-vous")
 @login_required(role='doctor')
 def rendez_vous_doctor():
@@ -3470,21 +3506,19 @@ def details_rendez_vous_doctor(rdv_id):
     return render_template("doctor/gestion_rendezvous/details_rendezvous.html", rdv=rdv)
 
 
-
-#foction pour envyer un mail au patient quand me doctuer confirme ou anule un rendz vous
+# foction pour envyer un mail au patient quand me doctuer confirme ou anule un rendz vous
 def envoyer_mail_patient(rdv, sujet, contenu):
     """Fonction utilitaire pour notifier le patient par mail"""
     if rdv.patient and rdv.patient.email_patient:
         msg = Message(
             subject=sujet,
-            recipients=[rdv.patient.email_patient,],
+            recipients=[rdv.patient.email_patient, ],
             body=contenu
         )
         mail.send(msg)
 
 
-
-#prendre rendevous pour le docteur
+# prendre rendevous pour le docteur
 @app.route("/doctor/rendez-vous/prendre_rendez-vous", methods=['GET', 'POST'])
 @login_required(role='doctor')
 def prendre_rendez_vous_doctor():
@@ -3574,7 +3608,7 @@ L'équipe MediJustsu
     )
 
 
-#modifier rendezvous docreur
+# modifier rendezvous docreur
 @app.route("/doctor/rendez-vous/modifier_rendez-vous/<int:rdv_id>", methods=['GET', 'POST'])
 @login_required(role='doctor')
 def modifier_rendez_vous_doctor(rdv_id):
@@ -3591,8 +3625,7 @@ def modifier_rendez_vous_doctor(rdv_id):
     return render_template("doctor/gestion_rendezvous/modifier_rendezvous.html", rdv=rdv)
 
 
-
-#gestion_rendezvous secretaire medicale
+# gestion_rendezvous secretaire medicale
 @app.route("/secretaire/rendez-vous", methods=['GET'])
 @login_required(role='secretaire')
 def calendrier_rendezvous_secretaire():
@@ -3752,10 +3785,7 @@ def details_rendez_vous_secretaire(rdv_id):
     )
 
 
-
-
-
-#prendre_rendezvous secretaire medicale
+# prendre_rendezvous secretaire medicale
 @app.route("/secretaire/rendez-vous/nouveau", methods=['GET', 'POST'])
 @login_required(role='secretaire')
 def prendre_rendez_vous_secretaire():
@@ -3842,7 +3872,8 @@ def prendre_rendez_vous_secretaire():
     )
 
 
-def envoyer_email_rendezvous(destinataire, nom, date_rdv, heure_debut, heure_fin, motif, role, medecin_nom=None, patient_nom=None, annulation=False):
+def envoyer_email_rendezvous(destinataire, nom, date_rdv, heure_debut, heure_fin, motif, role, medecin_nom=None,
+                             patient_nom=None, annulation=False):
     if annulation:
         if role == "patient":
             body = f"""
@@ -3895,14 +3926,14 @@ def envoyer_email_rendezvous(destinataire, nom, date_rdv, heure_debut, heure_fin
     )
     mail.send(msg)
 
+
 """fin rendezvous"""
 
-
-
-
-#dossier medicale
+# dossier medicale
 """gestion dossier medicale"""
-#dossiermedicla patient
+
+
+# dossiermedicla patient
 @app.route("/patient/dossier_medical/<int:patient_id>")
 @login_required(role='patient')
 def dossier_medical_patient(patient_id):
@@ -3928,7 +3959,8 @@ def dossier_medical_patient(patient_id):
         sorties=sorties
     )
 
-#dossier medical parient docteur
+
+# dossier medical parient docteur
 @app.route("/doctor/dossier_patient/<int:patient_id>")
 @login_required(role="doctor")
 def dossier_patient_docteur(patient_id):
@@ -3953,7 +3985,6 @@ def dossier_patient_docteur(patient_id):
     )
 
 
-
 @app.route("/doctor/liste/patients")
 @login_required(role="doctor")
 def liste_patients_dossier_medical():
@@ -3961,66 +3992,57 @@ def liste_patients_dossier_medical():
     return render_template("doctor/dossier_medical/liste_patients.html", patients=patients)
 
 
-
 if __name__ == "__main__":
-    # Railway fournit automatiquement le port via la variable d'environnement PORT
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True)
 
 
 # Afficher toutes les ressources
 @app.route("/ressources")
 @login_required(role='admin')
 def liste_ressources():
-
     return render_template("logistique/ressources/liste.html", )
+
 
 # Enregistrer une ressource
 @app.route("/ressources/ajouter", methods=["GET", "POST"])
 @login_required(role='admin')
 def ajouter_ressource():
-
     return render_template("logistique/ressources/ajouter.html")
+
 
 # Modifier une ressource
 @app.route("/ressources/modifier/<int:id>", methods=["GET", "POST"])
 @login_required(role='admin')
 def modifier_ressource(id):
-
     return render_template("logistique/ressources/modifier.html", )
+
 
 # Supprimer une ressource
 @app.route("/ressources/supprimer/<int:id>")
 @login_required(role='admin')
 def supprimer_ressource(id):
-
     return redirect(url_for("logistique.liste_ressources"))
-
 
 
 @app.route("/equipements")
 @login_required(role='admin')
 def liste_equipements():
-
     return render_template("logistique/equipements/liste.html")
+
 
 @app.route("/equipements/suivi/<int:id>")
 @login_required(role='admin')
 def suivi_equipement(id):
-
     return render_template("logistique/equipements/suivi.html")
-
 
 
 @app.route("/maintenance/ajouter/<int:equipement_id>", methods=["GET", "POST"])
 @login_required(role='admin')
 def ajouter_maintenance(equipement_id):
-
     return render_template("logistique/maintenance/ajouter.html")
+
 
 @app.route("/maintenance/supprimer/<int:id>")
 @login_required(role='admin')
-
 def supprimer_maintenance(id):
-
     return redirect(url_for("logistique.suivi_equipement"))
