@@ -1,15 +1,12 @@
-# .nixpacks.toml
-
 [phases.setup]
-# Packages système nécessaires pour WeasyPrint et Flask
 packages = [
-    "python310",             # Python (choisir la version que tu utilises)
+    "python312",
     "cairo",
     "pango",
     "gdk-pixbuf",
     "gobject-introspection",
-    "libffi",
     "glib",
+    "libffi",
     "fontconfig",
     "libxml2",
     "libxslt",
@@ -18,11 +15,9 @@ packages = [
 ]
 
 [phases.install]
-# Supprime le cache pip pour éviter les conflits
 pre = "rm -rf /root/.cache/pip"
 
 [phases.build]
-# Crée l'environnement virtuel et installe les dépendances Python
 run = '''
 python -m venv /opt/venv
 . /opt/venv/bin/activate
@@ -31,7 +26,6 @@ pip install -r requirements.txt
 '''
 
 [phases.start]
-# Commande pour lancer ton app Flask
 run = '''
 . /opt/venv/bin/activate
 gunicorn app:app -b 0.0.0.0:8080
