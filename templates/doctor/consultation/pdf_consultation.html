@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <title>Consultation #{{ consultation.id }}</title>
     <style>
-        /* Roboto intégré pour xhtml2pdf */
+        /* Polices Roboto */
         @font-face {
             font-family: 'Roboto';
             src: url("{{ url_for('static', filename='fonts/Roboto-Regular.ttf') }}") format("truetype");
@@ -104,7 +104,6 @@
             padding-top: 10px;
         }
 
-        /* Pour que xhtml2pdf gère mieux les images flottantes */
         .clearfix::after {
             content: "";
             display: table;
@@ -215,7 +214,7 @@
     </div>
 
     <div class="footer">
-        Ce document a été généré automatiquement par MediJustus | {{ now().strftime('%d/%m/%Y %H:%M') }}
+        Ce document a été généré automatiquement par MediJustus | {{ now.strftime('%d/%m/%Y %H:%M') }}
     </div>
 
 </body>

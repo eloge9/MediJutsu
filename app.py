@@ -3068,7 +3068,7 @@ def telecharger_consultation(id):
                            consultation=consultation,
                            now=datetime.now)
 
-    pdf = HTML(string=html).write_pdf()
+    pdf = HTML(string=html, base_url=request.base_url).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
