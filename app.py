@@ -1,6 +1,5 @@
 import os
 from flask import Flask, render_template, redirect, url_for, session, request, flash,make_response, jsonify
-from flask_mysqldb import MySQL
 import MySQLdb.cursors
 import hashlib
 from credentials import *
@@ -54,7 +53,7 @@ app.config['MAIL_DEFAULT_SENDER'] = ('MediJutsu', 'elogegomina@gmail.com')
 
 mail = Mail(app)
 
-mysql = MySQL()
+mysql = db
 mysql.init_app(app)
 
 app.secret_key = my_secret_key
